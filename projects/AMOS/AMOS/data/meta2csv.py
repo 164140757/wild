@@ -138,6 +138,10 @@ def _splitSerieIfRequired(serie, series):
         # Get current slice
         ds2 = L[index]
 
+        # Check whether we can do this
+        if "ImagePositionPatient" not in ds2:
+            return  
+
         # Get positions
         pos1 = float(ds1.ImagePositionPatient[2])
         pos2 = float(ds2.ImagePositionPatient[2])
@@ -661,7 +665,6 @@ def pipeline(item):
                 meta_dict.update({ele.name: ele.value})
             except:
                 print(ele.value)
-        meta_dict.update({'Nii File:': '_'.join([check_id, meta_dict['Study Instance UID'], meta_dict['Series Instance UID']])})
         data_list.append(meta_dict)
     return data_list
 
@@ -671,18 +674,21 @@ if __name__ == '__main__':
     import itertools
 
     dir_list = []
-    root = "/mnts2d/med_data1/haotian/AMOS/MR"
+    root = "/mnts2d/med_data1/haotian/AMOS/second_round/CT/2021/202101/20210118-20210131"
 
-    data_roots = glob(root+'/*/*/')
+    data_roots = glob(root)
     
     for data_root in data_roots:
         for root, subdirs, files in os.walk(data_root):
             for subdir in subdirs:
                 dir_list.append(os.path.join(root, subdir))
 
-    with Pool(24) as p:
+    depth = [item.count(os.sep) for item in dir_list]
+    dir_list = [item for item in dir_list if item.count(os.sep) == max(depth)]
+    
+    with Pool(8) as p:
         r = itertools.chain(*tqdm(p.map(pipeline, dir_list), total=len(dir_list)))
     
     df = pd.DataFrame(r)
-    df.to_excel('/mnts2d/med_data1/haotian/AMOS/firstRound_overall_series_meta_mr.xlsx',
+    df.to_excel('/mnts2d/med_data1/haotian/AMOS/second_round/ct_series_20210118-20210131.xlsx',
               encoding='utf-8', index=False)
