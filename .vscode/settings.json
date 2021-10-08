@@ -1,5 +1,6 @@
 {
     "python.analysis.extraPaths": [
         "./projects/AMOS/docs",
-    ]
+    ],
+    "git.ignoreLimitWarning": true
 }
