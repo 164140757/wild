@@ -11,7 +11,7 @@ def hasSubdir(root):
     sub_dirs = set([os.path.dirname(p) for p in glob(root+"/*/*")])
     return len(sub_dirs)>0
 
-def dcm2nii(_dir):
+def dcm2niix(_dir):
     check_id = os.path.split(_dir)[-1]
     out_path = os.path.join(out_dir, check_id)
     os.makedirs(out_path, exist_ok=True)
@@ -20,22 +20,24 @@ def dcm2nii(_dir):
     output_str=res.read()
     return output_str
 
-data_roots=glob(data_root+'/*/')
 
-total_dir=[]
+if __name__ == '__main__':
+    data_roots=glob(data_root+'/*/')
 
-totolen=0
-for data_root in data_roots:
-    dir_list=[]
-    for root, subdirs, _ in os.walk(data_root):
-        for subdir in subdirs:
-            dir_list.append(os.path.join(root, subdir))
-    totolen += len(dir_list)
-    total_dir.extend(dir_list)
+    total_dir=[]
 
-# clean sub-roots
-total_dir = [x for x in total_dir if not hasSubdir(x)]
-print(f'Total number of cases: {len(total_dir)}')
+    totolen=0
+    for data_root in data_roots:
+        dir_list=[]
+        for root, subdirs, _ in os.walk(data_root):
+            for subdir in subdirs:
+                dir_list.append(os.path.join(root, subdir))
+        totolen += len(dir_list)
+        total_dir.extend(dir_list)
 
-with Pool(3) as p:
-    r=list(tqdm(p.map(dcm2nii, total_dir), total=len(total_dir)))
+    # clean sub-roots
+    total_dir = [x for x in total_dir if not hasSubdir(x)]
+    print(f'Total number of cases: {len(total_dir)}')
+
+    with Pool(3) as p:
+        tqdm(p.map(dcm2niix, total_dir), total=len(total_dir))
