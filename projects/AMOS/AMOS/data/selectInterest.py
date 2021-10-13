@@ -1,5 +1,7 @@
 from glob import glob
 import pandas as pd 
+import os 
+from wild.util import hasSubdir
 
 df_path = '/mnts2d/med_data1/haotian/AMOS/second_round/CT/2021/202101/secondround_ct_data_meta_202101.xlsx'
 DATA_ROOT = r'F:\MIA\AMOS-CT-MR\processed\second_round\ct_nii\ct_nii_20210118-20210131'
@@ -22,3 +24,16 @@ df = df[df['d_z'] >= 40]
 print(f'Patients in interest: {df.shape[0]}')
 
 data_roots=glob(DATA_ROOT+'/*/')
+total_dir=[]
+
+totolen=0
+for data_root in data_roots:
+    dir_list=[]
+    for root, subdirs, _ in os.walk(data_root):
+        for subdir in subdirs:
+            dir_list.append(os.path.join(root, subdir))
+    totolen += len(dir_list)
+    total_dir.extend(dir_list)
+
+total_dir = [x for x in total_dir if not hasSubdir(x)]
+

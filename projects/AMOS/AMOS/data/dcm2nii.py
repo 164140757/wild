@@ -7,9 +7,7 @@ from tqdm import tqdm
 data_root = r"F:\MIA\AMOS-CT-MR\raw\test"
 out_dir = r"F:\MIA\AMOS-CT-MR\processed\test"
 
-def hasSubdir(root):
-    sub_dirs = set([os.path.dirname(p) for p in glob(root+"/*/*")])
-    return len(sub_dirs)>0
+from wild.util import hasSubdir
 
 def dcm2niix(_dir):
     check_id = os.path.split(_dir)[-1]
