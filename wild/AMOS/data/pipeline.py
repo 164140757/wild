@@ -130,12 +130,13 @@ def dicom2FullReport(num_pool=8, save=True):
     total = [x for x in tqdm(total) if not hasSubdir(x)]
     print(f'Found cases {len(total)} after checking.')
     
-    print('Start grabbing dicom info to the file.')
+    print(f'Start collecting dicom info to the file {DF_PATH}.')
     with Pool(num_pool) as p:
         r = itertools.chain(*tqdm(p.map(meta2csv, total), total=len(total)))    
         
     pre_series_report_dirs = glob(PRE_FULL_REPORT_ROOT+'/*/*.xlsx')
     series_meta_df = pd.DataFrame(r)
+    print('Merge reports and series\' meta...')
     full_df = mergeReportAndSeries(DATA_ROOT, pre_series_report_dirs, series_meta_df)
     
     out_dir = os.path.split(DF_PATH)[0]
