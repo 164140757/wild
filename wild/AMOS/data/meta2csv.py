@@ -330,7 +330,8 @@ def read_files(path, showProgress=False, readPixelData=False, force=False):
             elif os.path.isfile(p):
                 files.append(p)
             else:
-                print(f"Warning, the path '{p}' is not valid.")
+                pass
+                # print(f"Warning, the path '{p}' is not valid.")
     else:
         raise ValueError('The path argument must be a string or list.')
 
@@ -364,7 +365,8 @@ def read_files(path, showProgress=False, readPixelData=False, force=False):
             if showProgress is _progressCallback:
                 _progressBar.PrintMessage(str(why))
             else:
-                print('Warning:', why)
+                pass
+                # print('Warning:', why)
             continue
 
         # Get SUID and register the file with an existing or new series object
@@ -619,11 +621,12 @@ class DicomSeries(object):
                 raise ValueError('Dimensions of slices does not match.')
             if spacing != spacing2:
                 # We can still produce a volume, but we should notify the user
-                msg = 'Warning: spacing does not match.'
-                if self._showProgress is _progressCallback:
-                    _progressBar.PrintMessage(msg)
-                else:
-                    print(msg)
+                # msg = 'Warning: spacing does not match.'
+                # if self._showProgress is _progressCallback:
+                #     _progressBar.PrintMessage(msg)
+                # else:
+                #     print(msg)
+                pass
             # Store previous
             ds1 = ds2
 
