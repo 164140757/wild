@@ -24,7 +24,7 @@ PRE_NII_ROOT: previous nii files root to move to OUT_DIR_NII
 PRE_FULL_REPORT_ROOT = r'F:\MIA\AMOS-CT-MR\raw\meta'
 DATA_ROOT = r'F:\MIA\AMOS-CT-MR\raw\second_round\CT\2021\202102'
 OUT_DIR_NII_interest = r'F:\MIA\AMOS-CT-MR\processed\second_round\ct_nii\interest\interest_202102'
-OUT_DIR_NII_tmp = r'F:\MIA\AMOS-CT-MR\processed\second_round\ct_nii\ct_nii_202102'
+OUT_DIR_NII_tmp = r'F:\MIA\AMOS-CT-MR\processed\second_round\ct_nii\tmp_ct_nii_202102'
 DF_PATH = PRE_FULL_REPORT_ROOT+'\second_round\secondround_ct_data_meta_202102.xlsx'
 PRE_NII_ROOT = None
 
@@ -46,6 +46,8 @@ def select_nii_paths_with_interest(df_interest, nii_dir):
         total.extend(dir_list)        
     total = [x for x in total if x.endswith('.nii.gz')]
     total = [x for x in total if os.path.split(x)[-1].split('.nii.gz')[0] in df_interest['nii_file'].values]
+    
+    print(f'Get {len(total)} cases in the end and ready for moving it to {OUT_DIR_NII_interest}.')
     return total
 
 def generate_dcm_dirs(df_interest, total_dcm_dirs=None):
@@ -112,7 +114,7 @@ def selectByDf(df=None):
     df.insert(0, 'd_z', distance_z)
 
     df = df[df['d_z'] >= 40]
-    print(f'Patients in interest: {df.shape[0]}')
+    print(f'Patients in interest from df: {df.shape[0]}')
     return df
 
 def dicom2FullReport(num_pool=8, save=True):
@@ -153,6 +155,8 @@ def dcm2niiFiles(total_dir, num_pool=8):
         tqdm(pool.map(partial(dcm2niix, out_dir=OUT_DIR_NII_tmp), total_dir), total=len(total_dir))
 
 if __name__ == '__main__':
+    # Please ensure all excels files including series meta, reports.csv are closed.
+    # Or you may get access deny error.
     df = None
     if os.path.exists(DF_PATH):
         df = selectByDf()
