@@ -96,9 +96,13 @@ def move(total_nii_paths):
 
 def selectByDf(df=None):
     print('Start selecting patients of interst')
+    df_pre = None
+    
     if df is None:
         df = pd.read_excel(DF_PATH, usecols=['complete_ab_flag', 'nii_file', '临床诊断', 'shape', 'Protocol Name', 'spacing', '检查时间'])
+        df_pre = df.copy(deep=True)
     else:
+        df_pre = df.copy(deep=True)
         df = df[['complete_ab_flag', 'nii_file', '临床诊断', 'shape', 'Protocol Name', 'spacing', '检查时间']]
     
     df = df.loc[df['Protocol Name'].str.contains('Abdomen')]
@@ -115,6 +119,12 @@ def selectByDf(df=None):
 
     df = df[df['d_z'] >= 40]
     print(f'Patients in interest from df: {df.shape[0]}')
+    df_interest_name = os.path.split(DF_PATH)
+    file_name = df_interest_name[-1].split('.xlsx')[0]+'_interest'+'.xlsx'
+    df_interest_name = os.path.join(df_interest_name[0], file_name)
+    print(f'Saving meta info of interest back to file {df_interest_name}')
+    df_pre = df_pre[df.index]
+    df_pre.to_excel(os.path.join(DF_PATH, encoding='utf-8', index=False))
     return df
 
 def dicom2FullReport(num_pool=8, save=True):
