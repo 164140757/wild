@@ -22,10 +22,10 @@ PRE_NII_ROOT: previous nii files root to move to OUT_DIR_NII
 """
 
 PRE_FULL_REPORT_ROOT = r'F:\MIA\AMOS-CT-MR\raw\meta'
-DATA_ROOT = r'F:\MIA\AMOS-CT-MR\raw\second_round\CT\2021\202103'
-OUT_DIR_NII_interest = r'F:\MIA\AMOS-CT-MR\processed\second_round\ct_nii\interest\interest_202103'
-OUT_DIR_NII_tmp = r'F:\MIA\AMOS-CT-MR\processed\second_round\ct_nii\tmp_ct_nii_202103'
-DF_PATH = PRE_FULL_REPORT_ROOT+'\second_round\secondround_ct_data_meta_202103.xlsx'
+DATA_ROOT = r'F:\MIA\AMOS-CT-MR\raw\second_round\CT\2021\202105'
+OUT_DIR_NII_interest = r'F:\MIA\AMOS-CT-MR\processed\second_round\ct_nii\interest\interest_202105'
+OUT_DIR_NII_tmp = r'F:\MIA\AMOS-CT-MR\processed\second_round\ct_nii\tmp_ct_nii_202105'
+DF_PATH = PRE_FULL_REPORT_ROOT+'\second_round\secondround_ct_data_meta_202105.xlsx'
 PRE_NII_ROOT = None
 
 def select_nii_paths_with_interest(df_interest, nii_dir):
@@ -40,10 +40,10 @@ def select_nii_paths_with_interest(df_interest, nii_dir):
     total=[]
     # clean
     for root, dirs, files in os.walk(nii_dir):
-        dir_list=[]
+        file_list=[]
         for file in files:
-            dir_list.append(os.path.join(root, file))
-        total.extend(dir_list)        
+            file_list.append(os.path.join(root, file))
+        total.extend(file_list)        
     total = [x for x in total if x.endswith('.nii.gz')]
     total = [x for x in total if os.path.split(x)[-1].split('.nii.gz')[0] in df_interest['nii_file'].values]
     
@@ -111,19 +111,18 @@ def selectByDf(df=None):
     df = df.loc[df['Protocol Name'].str.contains('Abdomen')]
     df['检查时间'] = pd.to_datetime(df['检查时间'], format='%Y%m%d')
     # df = df.loc[(df['检查时间'] >= '2021-01-18') & (df['检查时间'] <= '2021-01-31')] 
-    df = df[df['complete_ab_flag']!=1]
-    df = df.loc[(df['临床诊断'].str.contains('癌')) | (df['临床诊断'].str.contains('肿瘤'))]
+    df = df.loc[(df['临床诊断'].str.contains('癌')) | (df['临床诊断'].str.contains('瘤'))]
 
     if df.shape[0] == 0: 
         raise ValueError('The full report has no patients of interest.')
     
     # spacing * shape -> physical distance
-    spacing_z = df['spacing'].str.strip('[]').str.split(', ', expand=True).loc[:, 0].astype(float)
-    shape_z = df['shape'].str.strip('()').str.split(', ', expand=True).loc[:, 0].astype(float)
+    spacing_z = df['spacing'].astype(str).str.strip('[]').str.split(', ', expand=True).loc[:, 0].astype(float)
+    shape_z = df['shape'].astype(str).str.strip('()').str.split(', ', expand=True).loc[:, 0].astype(float)
     distance_z = spacing_z.multiply(shape_z, fill_value=0)*0.1
     df.insert(0, 'd_z', distance_z)
 
-    df = df[df['d_z'] >= 40]
+    df = df[df['d_z'] >= 30]
     print(f'Patients in interest from df: {df.shape[0]}')
     # annotate complete_ab_flag, but need check again
     df_pre.loc[df.index,'complete_ab_flag'] = 1
@@ -164,9 +163,15 @@ def dicom2FullReport(num_pool=8, save=True):
 
 def dcm2niiFiles(total_dir, num_pool=8):
     """
-    Output nii files of interest based on check ids from total_dir
+    Output nii files of interest based on check ids from total_dir(DICOM directories)
     """
     print(f'Start dcm2niix and out to folder {OUT_DIR_NII_tmp}')
+    total = len(total_dir)
+    # spare resources for outcomes that exist
+    total_dir = [x for x in total_dir if not os.path.exists(os.path.join(OUT_DIR_NII_interest, os.path.split(x)[-1]))]
+    _total = len(total_dir)
+    print(f'Skip {total - _total} cases that already exist.')
+    
     with Pool(num_pool) as pool:
         tqdm(pool.map(partial(dcm2niix, out_dir=OUT_DIR_NII_tmp), total_dir), total=len(total_dir))
 
