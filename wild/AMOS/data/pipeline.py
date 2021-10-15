@@ -26,7 +26,7 @@ DATA_ROOT = r'F:\MIA\AMOS-CT-MR\raw\second_round\CT\2021\202102'
 OUT_DIR_NII_interest = r'F:\MIA\AMOS-CT-MR\processed\second_round\ct_nii\interest\interest_202102'
 OUT_DIR_NII_tmp = r'F:\MIA\AMOS-CT-MR\processed\second_round\ct_nii\tmp_ct_nii_202102'
 DF_PATH = PRE_FULL_REPORT_ROOT+'\second_round\secondround_ct_data_meta_202102.xlsx'
-PRE_NII_ROOT = None
+PRE_NII_ROOT = r'F:\MIA\AMOS-CT-MR\processed\second_round\ct_nii\tmp_ct_nii_202102'
 
 def select_nii_paths_with_interest(df_interest, nii_dir):
     """
@@ -59,15 +59,15 @@ def generate_dcm_dirs(df_interest, total_dcm_dirs=None):
     - total_dcm_dirs: all dcm checks directories
     """
     if total_dcm_dirs is None:
-        dir_list=[]
+        total=[]
         print("Have not found dicom folders in variables. Start collecting dicom folders to convert to nii.")
         for root, dirs, files in os.walk(DATA_ROOT):
             dir_list=[]
             for _dir in dirs:
                 dir_list.append(os.path.join(root, _dir))
-            dir_list.extend(dir_list)
+            total.extend(dir_list)
         print('Checking all dicom files paths.')
-        total_dcm_dirs=[x for x in tqdm(dir_list) if not hasSubdir(x)]
+        total_dcm_dirs=[x for x in tqdm(total) if not hasSubdir(x)]
         print(f'Found cases {len(total_dcm_dirs)} after checking.')
         
     total_paths = set()
@@ -75,15 +75,13 @@ def generate_dcm_dirs(df_interest, total_dcm_dirs=None):
     for _dir in total_dcm_dirs:
         if os.path.split(_dir)[-1] in check_ids:
             total_paths.add(_dir)
-    return total_paths
+    return list(total_paths)
         
 def move(total_nii_paths):
     """
     - total_nii_paths: all nii_paths to move to OUT_DIR_NII
     """
     os.makedirs(OUT_DIR_NII_interest, exist_ok=True)
-    if os.path.exists(os.path.join(DATA_ROOT, 'data.csv')):
-        shutil.move(os.path.join(DATA_ROOT, 'data.csv'), os.path.join(OUT_DIR_NII_interest, 'data.csv'))
 
     for file in tqdm(total_nii_paths):
         _ = file.split(os.sep)
@@ -99,18 +97,23 @@ def selectByDf(df=None):
     df_pre = None
     
     if df is None:
-        df = pd.read_excel(DF_PATH, usecols=['complete_ab_flag', 'nii_file', '临床诊断', 'shape', 'Protocol Name', 'spacing', '检查时间'])
+        df = pd.read_excel(DF_PATH)
         df_pre = df.copy(deep=True)
+        df = df[['complete_ab_flag', 'nii_file', '临床诊断', 'shape', 'Protocol Name', 'spacing', '检查时间']]
     else:
         df_pre = df.copy(deep=True)
         df = df[['complete_ab_flag', 'nii_file', '临床诊断', 'shape', 'Protocol Name', 'spacing', '检查时间']]
     
     df = df.loc[df['Protocol Name'].str.contains('Abdomen')]
     df['检查时间'] = pd.to_datetime(df['检查时间'], format='%Y%m%d')
-    df = df.loc[(df['检查时间'] >= '2021-01-18') & (df['检查时间'] <= '2021-01-31')] 
+    # df = df.loc[(df['检查时间'] >= '2021-01-18') & (df['检查时间'] <= '2021-01-31')] 
     df = df[df['complete_ab_flag']!=1]
     df = df.loc[(df['临床诊断'].str.contains('癌')) | (df['临床诊断'].str.contains('肿瘤'))]
 
+    # print(df.head())
+    if df.shape[0] == 0: 
+        raise ValueError('The full report has no patients of interest.')
+    
     # spacing * shape -> physical distance
     spacing_z = df['spacing'].str.strip('[]').str.split(', ', expand=True).loc[:, 0].astype(float)
     shape_z = df['shape'].str.strip('()').str.split(', ', expand=True).loc[:, 0].astype(float)
@@ -119,12 +122,10 @@ def selectByDf(df=None):
 
     df = df[df['d_z'] >= 40]
     print(f'Patients in interest from df: {df.shape[0]}')
-    df_interest_name = os.path.split(DF_PATH)
-    file_name = df_interest_name[-1].split('.xlsx')[0]+'_interest'+'.xlsx'
-    df_interest_name = os.path.join(df_interest_name[0], file_name)
-    print(f'Saving meta info of interest back to file {df_interest_name}')
-    df_pre = df_pre[df.index]
-    df_pre.to_excel(os.path.join(DF_PATH, encoding='utf-8', index=False))
+    # annotate complete_ab_flag, but need check again
+    df_pre.loc[df.index,'complete_ab_flag'] = 1
+    print(f'overwrite excel {DF_PATH} with complete_ab_flag that denotes targets of interest.')
+    df_pre.to_excel(os.path.join(DF_PATH), encoding='utf-8', index=False)
     return df
 
 def dicom2FullReport(num_pool=8, save=True):
@@ -146,7 +147,8 @@ def dicom2FullReport(num_pool=8, save=True):
         
     pre_series_report_dirs = glob(PRE_FULL_REPORT_ROOT+'/*/*.xlsx')
     series_meta_df = pd.DataFrame(r)
-    print('Merge reports and series\' meta...')
+    # series_meta_df = pd.read_excel('series_tmp.xlsx')
+    print('Merge reports and series\'s meta...')
     full_df = mergeReportAndSeries(DATA_ROOT, pre_series_report_dirs, series_meta_df)
     
     out_dir = os.path.split(DF_PATH)[0]
@@ -154,7 +156,7 @@ def dicom2FullReport(num_pool=8, save=True):
     
     if save:
         print(f'Output the full report to the dir {DF_PATH}.')
-        full_df.to_excel(os.path.join(DF_PATH, encoding='utf-8', index=False))
+        full_df.to_excel(os.path.join(DF_PATH), encoding='utf-8', index=False)
     return full_df, total
 
 def dcm2niiFiles(total_dir, num_pool=8):
@@ -169,6 +171,8 @@ if __name__ == '__main__':
     # Please ensure all excels files including series meta, reports.csv are closed.
     # Or you may get access deny error.
     df = None
+    total_dcm_dirs = None
+    
     if os.path.exists(DF_PATH):
         df = selectByDf()
     else:
