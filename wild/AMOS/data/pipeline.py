@@ -22,11 +22,11 @@ PRE_NII_ROOT: previous nii files root to move to OUT_DIR_NII
 """
 
 PRE_FULL_REPORT_ROOT = r'F:\MIA\AMOS-CT-MR\raw\meta'
-DATA_ROOT = r'F:\MIA\AMOS-CT-MR\raw\second_round\CT\2021\202102'
-OUT_DIR_NII_interest = r'F:\MIA\AMOS-CT-MR\processed\second_round\ct_nii\interest\interest_202102'
-OUT_DIR_NII_tmp = r'F:\MIA\AMOS-CT-MR\processed\second_round\ct_nii\tmp_ct_nii_202102'
-DF_PATH = PRE_FULL_REPORT_ROOT+'\second_round\secondround_ct_data_meta_202102.xlsx'
-PRE_NII_ROOT = r'F:\MIA\AMOS-CT-MR\processed\second_round\ct_nii\tmp_ct_nii_202102'
+DATA_ROOT = r'F:\MIA\AMOS-CT-MR\raw\second_round\CT\2021\202103'
+OUT_DIR_NII_interest = r'F:\MIA\AMOS-CT-MR\processed\second_round\ct_nii\interest\interest_202103'
+OUT_DIR_NII_tmp = r'F:\MIA\AMOS-CT-MR\processed\second_round\ct_nii\tmp_ct_nii_202103'
+DF_PATH = PRE_FULL_REPORT_ROOT+'\second_round\secondround_ct_data_meta_202103.xlsx'
+PRE_NII_ROOT = None
 
 def select_nii_paths_with_interest(df_interest, nii_dir):
     """
@@ -89,7 +89,11 @@ def move(total_nii_paths):
         file_name = _[-1]
         dir_out = os.path.join(OUT_DIR_NII_interest, dir_name)
         os.makedirs(dir_out, exist_ok=True)
-        shutil.move(file, os.path.join(dir_out, file_name))    
+        shutil.move(file, os.path.join(dir_out, file_name))
+        
+    if os.path.exists(OUT_DIR_NII_tmp):
+        print(f'Remove nii_temp files in {OUT_DIR_NII_tmp}')
+        shutil.rmtree(OUT_DIR_NII_tmp)
         
 
 def selectByDf(df=None):
@@ -110,7 +114,6 @@ def selectByDf(df=None):
     df = df[df['complete_ab_flag']!=1]
     df = df.loc[(df['临床诊断'].str.contains('癌')) | (df['临床诊断'].str.contains('肿瘤'))]
 
-    # print(df.head())
     if df.shape[0] == 0: 
         raise ValueError('The full report has no patients of interest.')
     
