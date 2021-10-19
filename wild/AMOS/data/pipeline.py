@@ -1,12 +1,13 @@
 import itertools
 from multiprocessing.pool import Pool
-import pandas as pd 
+import pandas as pd
 
-import os 
+import os
 from glob import glob
 import shutil
 from tqdm import tqdm
 from functools import partial
+import numpy as np
 
 from .dcm2nii import hasSubdir, dcm2niix
 from .meta2csv import meta2csv
@@ -19,69 +20,87 @@ DF_PATH: path that has all new patients full reports if it exists.
 DATA_ROOT: DICOM ROOT or Nii ROOT.
 OUT_DIR_NII: directory to output patients nii files of interest. 
 PRE_NII_ROOT: previous nii files root to move to OUT_DIR_NII
+KEYWORDS: Used to select by descriptions of patients
 """
 
-PRE_FULL_REPORT_ROOT = r'F:\MIA\AMOS-CT-MR\raw\meta'
+# PRE_FULL_REPORT_ROOT = r'F:\MIA\AMOS-CT-MR\raw\meta'
+PRE_FULL_REPORT_ROOT = None
 DATA_ROOT = r'F:\MIA\AMOS-CT-MR\raw\second_round\CT\2021\202105'
-OUT_DIR_NII_interest = r'F:\MIA\AMOS-CT-MR\processed\second_round\ct_nii\interest\interest_202105'
+# DATA_ROOT = None
+OUT_DIR_NII_interest = r'F:\MIA\AMOS-CT-MR\processed\second_round\ct_nii\normal\interest_202105'
 OUT_DIR_NII_tmp = r'F:\MIA\AMOS-CT-MR\processed\second_round\ct_nii\tmp_ct_nii_202105'
-DF_PATH = PRE_FULL_REPORT_ROOT+'\second_round\secondround_ct_data_meta_202105.xlsx'
+DF_PATH = r'F:\MIA\AMOS-CT-MR\raw\meta\second_round\secondround_ct_data_meta_202105.xlsx'
 PRE_NII_ROOT = None
+# PRE_NII_ROOT = r'F:\MIA\AMOS-CT-MR\processed\second_round\ct_nii\ct_nii_raw_20210101_20210117'
+
+# KEYWORDS = ['结石', '胆囊炎', '车祸伤', '胰腺炎', '切除', '骨折', '溃疡', '肾脏病', '腹水', '糜烂']
+# KEYWORDS = ['瘤', '癌']
+# KEYWORDS = ['痛', '体检', '发热', '贫血']
+KEYWORDS = ['晕', '呕吐', '感染', '糖尿病', '异常', '梗阻', '中毒', '白细胞', '高血压', '功能']
+
 
 def select_nii_paths_with_interest(df_interest, nii_dir):
     """
     Args:
     - df_interest: dataframe after selection
     - nii_dir: nii files root.
-    
+
     Return:
     Paths after interest selection.
     """
-    total=[]
+    total = []
     # clean
     for root, dirs, files in os.walk(nii_dir):
-        file_list=[]
+        file_list = []
         for file in files:
             file_list.append(os.path.join(root, file))
-        total.extend(file_list)        
+        total.extend(file_list)
     total = [x for x in total if x.endswith('.nii.gz')]
-    total = [x for x in total if os.path.split(x)[-1].split('.nii.gz')[0] in df_interest['nii_file'].values]
-    
-    print(f'Get {len(total)} cases in the end and ready for moving it to {OUT_DIR_NII_interest}.')
+    total = [x for x in total if os.path.split(
+        x)[-1].split('.nii.gz')[0] in df_interest['nii_file'].values]
+
+    print(
+        f'Get {len(total)} cases in the end and ready for moving it to {OUT_DIR_NII_interest}.')
     return total
+
 
 def generate_dcm_dirs(df_interest, total_dcm_dirs=None):
     """
     Get dcm dirs input for dcm2niix 
-    
+
     Args:
     - df_interest: dataframe after interest selection.
     - total_dcm_dirs: all dcm checks directories
     """
     if total_dcm_dirs is None:
-        total=[]
+        total = []
         print("Have not found dicom folders in variables. Start collecting dicom folders to convert to nii.")
         for root, dirs, files in os.walk(DATA_ROOT):
-            dir_list=[]
+            dir_list = []
             for _dir in dirs:
                 dir_list.append(os.path.join(root, _dir))
             total.extend(dir_list)
         print('Checking all dicom files paths.')
-        total_dcm_dirs=[x for x in tqdm(total) if not hasSubdir(x)]
+        total_dcm_dirs = [x for x in tqdm(total) if not hasSubdir(x)]
         print(f'Found cases {len(total_dcm_dirs)} after checking.')
-        
+
     total_paths = set()
-    check_ids = df_interest['nii_file'].str.split('_', expand=True).loc[:, 0].values
+    check_ids = df_interest['nii_file'].str.split(
+        '_', expand=True).loc[:, 0].values
     for _dir in total_dcm_dirs:
         if os.path.split(_dir)[-1] in check_ids:
             total_paths.add(_dir)
     return list(total_paths)
-        
+
+
 def move(total_nii_paths):
     """
     - total_nii_paths: all nii_paths to move to OUT_DIR_NII
     """
     os.makedirs(OUT_DIR_NII_interest, exist_ok=True)
+
+    if PRE_NII_ROOT is not None:
+        print(f'Copying nii_temp files in {PRE_NII_ROOT}')
 
     for file in tqdm(total_nii_paths):
         _ = file.split(os.sep)
@@ -89,77 +108,90 @@ def move(total_nii_paths):
         file_name = _[-1]
         dir_out = os.path.join(OUT_DIR_NII_interest, dir_name)
         os.makedirs(dir_out, exist_ok=True)
-        shutil.move(file, os.path.join(dir_out, file_name))
-        
+        if PRE_NII_ROOT is not None:
+            shutil.copy(file, os.path.join(dir_out, file_name))
+        else:
+            shutil.move(file, os.path.join(dir_out, file_name))
+
     if os.path.exists(OUT_DIR_NII_tmp):
         print(f'Remove nii_temp files in {OUT_DIR_NII_tmp}')
         shutil.rmtree(OUT_DIR_NII_tmp)
-        
+
 
 def selectByDf(df=None):
     print('Start selecting patients of interst')
     df_pre = None
-    
+
     if df is None:
         df = pd.read_excel(DF_PATH)
         df_pre = df.copy(deep=True)
-        df = df[['complete_ab_flag', 'nii_file', '临床诊断', 'shape', 'Protocol Name', 'spacing', '检查时间']]
+        df = df[['complete_ab_flag', 'nii_file', '临床诊断',
+                 'shape', 'Protocol Name', 'spacing', '检查时间']]
     else:
         df_pre = df.copy(deep=True)
-        df = df[['complete_ab_flag', 'nii_file', '临床诊断', 'shape', 'Protocol Name', 'spacing', '检查时间']]
-    
+        df = df[['complete_ab_flag', 'nii_file', '临床诊断',
+                 'shape', 'Protocol Name', 'spacing', '检查时间']]
+
     df = df.loc[df['Protocol Name'].str.contains('Abdomen')]
     df['检查时间'] = pd.to_datetime(df['检查时间'], format='%Y%m%d')
-    # df = df.loc[(df['检查时间'] >= '2021-01-18') & (df['检查时间'] <= '2021-01-31')] 
-    df = df.loc[(df['临床诊断'].str.contains('癌')) | (df['临床诊断'].str.contains('瘤'))]
-
-    if df.shape[0] == 0: 
+    # df = df.loc[(df['检查时间'] >= '2021-01-18') & (df['检查时间'] <= '2021-01-31')]
+    conditions = [df['临床诊断'].str.contains(
+        key, na=False) for key in KEYWORDS]  
+    conditions.append(df['complete_ab_flag']!=1)  
+    df = df.loc[np.logical_or.reduce(conditions)]
+    if df.shape[0] == 0:
         raise ValueError('The full report has no patients of interest.')
-    
+
     # spacing * shape -> physical distance
-    spacing_z = df['spacing'].astype(str).str.strip('[]').str.split(', ', expand=True).loc[:, 0].astype(float)
-    shape_z = df['shape'].astype(str).str.strip('()').str.split(', ', expand=True).loc[:, 0].astype(float)
+    spacing_z = df['spacing'].astype(str).str.strip(
+        '[]').str.split(', ', expand=True).loc[:, 0].astype(float)
+    shape_z = df['shape'].astype(str).str.strip('()').str.split(
+        ', ', expand=True).loc[:, 0].astype(float)
     distance_z = spacing_z.multiply(shape_z, fill_value=0)*0.1
     df.insert(0, 'd_z', distance_z)
 
-    df = df[df['d_z'] >= 30]
+    df = df[df['d_z'] >= 40]
     print(f'Patients in interest from df: {df.shape[0]}')
     # annotate complete_ab_flag, but need check again
-    df_pre.loc[df.index,'complete_ab_flag'] = 1
-    print(f'overwrite excel {DF_PATH} with complete_ab_flag that denotes targets of interest.')
+    df_pre.loc[df.index, 'complete_ab_flag'] = 1
+    print(
+        f'Add excel {DF_PATH} with complete_ab_flag that denotes targets of interest.')
     df_pre.to_excel(os.path.join(DF_PATH), encoding='utf-8', index=False)
     return df
+
 
 def dicom2FullReport(num_pool=8, save=True):
     total = []
     print('Start fetching all dicom files paths.')
     for root, dirs, files in os.walk(DATA_ROOT):
-        dir_list=[]
+        dir_list = []
         for _dir in dirs:
             dir_list.append(os.path.join(root, _dir))
         total.extend(dir_list)
-        
+
     print('Checking all dicom files paths.')
     total = [x for x in tqdm(total) if not hasSubdir(x)]
     print(f'Found cases {len(total)} after checking.')
-    
+
     print(f'Start collecting dicom info to the file {DF_PATH}.')
     with Pool(num_pool) as p:
-        r = itertools.chain(*tqdm(p.map(meta2csv, total), total=len(total)))    
-        
+        r = itertools.chain(*tqdm(p.map(meta2csv, total), total=len(total)))
+
     pre_series_report_dirs = glob(PRE_FULL_REPORT_ROOT+'/*/*.xlsx')
     series_meta_df = pd.DataFrame(r)
     # series_meta_df = pd.read_excel('series_tmp.xlsx')
     print('Merge reports and series\'s meta...')
-    full_df = mergeReportAndSeries(DATA_ROOT, pre_series_report_dirs, series_meta_df)
-    
+    full_df = mergeReportAndSeries(
+        DATA_ROOT, pre_series_report_dirs, series_meta_df)
+
     out_dir = os.path.split(DF_PATH)[0]
     os.makedirs(out_dir, exist_ok=True)
-    
+
     if save:
         print(f'Output the full report to the dir {DF_PATH}.')
         full_df.to_excel(os.path.join(DF_PATH), encoding='utf-8', index=False)
     return full_df, total
+
 
 def dcm2niiFiles(total_dir, num_pool=8):
     """
@@ -168,19 +200,22 @@ def dcm2niiFiles(total_dir, num_pool=8):
     print(f'Start dcm2niix and out to folder {OUT_DIR_NII_tmp}')
     total = len(total_dir)
     # spare resources for outcomes that exist
-    total_dir = [x for x in total_dir if not os.path.exists(os.path.join(OUT_DIR_NII_interest, os.path.split(x)[-1]))]
+    total_dir = [x for x in total_dir if not os.path.exists(
+        os.path.join(OUT_DIR_NII_interest, os.path.split(x)[-1]))]
     _total = len(total_dir)
     print(f'Skip {total - _total} cases that already exist.')
-    
+
     with Pool(num_pool) as pool:
-        tqdm(pool.map(partial(dcm2niix, out_dir=OUT_DIR_NII_tmp), total_dir), total=len(total_dir))
+        tqdm(pool.map(partial(dcm2niix, out_dir=OUT_DIR_NII_tmp),
+             total_dir), total=len(total_dir))
+
 
 if __name__ == '__main__':
     # Please ensure all excels files including series meta, reports.csv are closed.
     # Or you may get access deny error.
     df = None
     total_dcm_dirs = None
-    
+
     if os.path.exists(DF_PATH):
         df = selectByDf()
     else:
@@ -195,8 +230,3 @@ if __name__ == '__main__':
         dcm2niiFiles(total)
         paths = select_nii_paths_with_interest(df, OUT_DIR_NII_tmp)
         move(paths)
-        
-    
-
-
-    
