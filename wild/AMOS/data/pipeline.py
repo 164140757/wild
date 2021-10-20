@@ -21,22 +21,28 @@ DATA_ROOT: DICOM ROOT or Nii ROOT.
 OUT_DIR_NII: directory to output patients nii files of interest. 
 PRE_NII_ROOT: previous nii files root to move to OUT_DIR_NII
 KEYWORDS: Used to select by descriptions of patients
+TYPE: Modality type (MR, CT)
+SELECT: whether to select by interest
 """
 
 # PRE_FULL_REPORT_ROOT = r'F:\MIA\AMOS-CT-MR\raw\meta'
 PRE_FULL_REPORT_ROOT = None
-DATA_ROOT = r'F:\MIA\AMOS-CT-MR\raw\second_round\CT\2021\202105'
+DATA_ROOT = r'F:\MIA\AMOS-CT-MR\raw\first_round\mr\2017'
 # DATA_ROOT = None
-OUT_DIR_NII_interest = r'F:\MIA\AMOS-CT-MR\processed\second_round\ct_nii\normal\interest_202105'
-OUT_DIR_NII_tmp = r'F:\MIA\AMOS-CT-MR\processed\second_round\ct_nii\tmp_ct_nii_202105'
-DF_PATH = r'F:\MIA\AMOS-CT-MR\raw\meta\second_round\secondround_ct_data_meta_202105.xlsx'
+OUT_DIR_NII_interest = r'F:\MIA\AMOS-CT-MR\processed\first_round\mr_nii\cancer\interest_2017'
+OUT_DIR_NII_tmp = r'F:\MIA\AMOS-CT-MR\processed\first_round\mr_nii\tmp_mr_nii_2017'
+DF_PATH = r'F:\MIA\AMOS-CT-MR\raw\meta\mr\first_round\firstround_mr_data_meta_2017.xlsx'
 PRE_NII_ROOT = None
+TYPE = 'MR'
+
+SELECT = False
 # PRE_NII_ROOT = r'F:\MIA\AMOS-CT-MR\processed\second_round\ct_nii\ct_nii_raw_20210101_20210117'
 
 # KEYWORDS = ['结石', '胆囊炎', '车祸伤', '胰腺炎', '切除', '骨折', '溃疡', '肾脏病', '腹水', '糜烂']
 # KEYWORDS = ['瘤', '癌']
+KEYWORDS = None
 # KEYWORDS = ['痛', '体检', '发热', '贫血']
-KEYWORDS = ['晕', '呕吐', '感染', '糖尿病', '异常', '梗阻', '中毒', '白细胞', '高血压', '功能']
+# KEYWORDS = ['晕', '呕吐', '感染', '糖尿病', '异常', '梗阻', '中毒', '白细胞', '高血压', '功能']
 
 
 def select_nii_paths_with_interest(df_interest, nii_dir):
@@ -118,27 +124,38 @@ def move(total_nii_paths):
         shutil.rmtree(OUT_DIR_NII_tmp)
 
 
-def selectByDf(df=None):
-    print('Start selecting patients of interst')
+def getDf(df=None):
+    
+    
     df_pre = None
 
     if df is None:
         df = pd.read_excel(DF_PATH)
+        if not SELECT:
+            print(f'Patients in interest from df: {df.shape[0]}')
+            return df
         df_pre = df.copy(deep=True)
         df = df[['complete_ab_flag', 'nii_file', '临床诊断',
                  'shape', 'Protocol Name', 'spacing', '检查时间']]
     else:
+        if not SELECT:
+            print(f'Patients in interest from df: {df.shape[0]}')
+            return df
         df_pre = df.copy(deep=True)
         df = df[['complete_ab_flag', 'nii_file', '临床诊断',
                  'shape', 'Protocol Name', 'spacing', '检查时间']]
-
-    df = df.loc[df['Protocol Name'].str.contains('Abdomen')]
+        
+        
+    print('Start selecting patients of interst')
+    df = df.loc[df['Protocol Name'].str.contains('Abdomen')] if TYPE == 'CT' else df
     df['检查时间'] = pd.to_datetime(df['检查时间'], format='%Y%m%d')
     # df = df.loc[(df['检查时间'] >= '2021-01-18') & (df['检查时间'] <= '2021-01-31')]
+    conditions = []
     conditions = [df['临床诊断'].str.contains(
-        key, na=False) for key in KEYWORDS]  
+        key, na=False) for key in KEYWORDS] if KEYWORDS is not None else conditions
     conditions.append(df['complete_ab_flag']!=1)  
     df = df.loc[np.logical_or.reduce(conditions)]
+    
     if df.shape[0] == 0:
         raise ValueError('The full report has no patients of interest.')
 
@@ -150,7 +167,7 @@ def selectByDf(df=None):
     distance_z = spacing_z.multiply(shape_z, fill_value=0)*0.1
     df.insert(0, 'd_z', distance_z)
 
-    df = df[df['d_z'] >= 40]
+    df = df[df['d_z'] >= 10]
     print(f'Patients in interest from df: {df.shape[0]}')
     # annotate complete_ab_flag, but need check again
     df_pre.loc[df.index, 'complete_ab_flag'] = 1
@@ -177,7 +194,7 @@ def dicom2FullReport(num_pool=8, save=True):
     with Pool(num_pool) as p:
         r = itertools.chain(*tqdm(p.map(meta2csv, total), total=len(total)))
 
-    pre_series_report_dirs = glob(PRE_FULL_REPORT_ROOT+'/*/*.xlsx')
+    pre_series_report_dirs = glob(PRE_FULL_REPORT_ROOT+'/*/*.xlsx') if PRE_FULL_REPORT_ROOT is not None else None
     series_meta_df = pd.DataFrame(r)
     # series_meta_df = pd.read_excel('series_tmp.xlsx')
     print('Merge reports and series\'s meta...')
@@ -217,10 +234,10 @@ if __name__ == '__main__':
     total_dcm_dirs = None
 
     if os.path.exists(DF_PATH):
-        df = selectByDf()
+        df = getDf()
     else:
         df, total_dcm_dirs = dicom2FullReport(save=True)
-        df = selectByDf(df)
+        df = getDf(df)
 
     if PRE_NII_ROOT is not None:
         paths = select_nii_paths_with_interest(df, PRE_NII_ROOT)

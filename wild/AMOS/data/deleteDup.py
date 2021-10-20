@@ -3,8 +3,8 @@ DATA_ROOT = r'F:\MIA\AMOS-CT-MR\processed\second_round\ct_nii\normal'
 REF_DF_DIRS = [r'F:\MIA\AMOS-CT-MR\raw\meta\first_round']
 
 import os
-from numpy.lib.polynomial import roots
 from tqdm import tqdm
+import numpy as np
 import pandas as pd
 
 def walk_nii(root):
@@ -12,7 +12,7 @@ def walk_nii(root):
     for root, dirs, files in os.walk(root):
         file_list=[]
         for file in files:
-            file_list.append(root, file)
+            file_list.append(os.path.join(root, file))
         total.extend(file_list)        
     pre_total_paths = [x for x in total if x.endswith('.nii.gz')]
     pre_num = len(pre_total_paths)
@@ -29,10 +29,10 @@ def walk_nii(root):
 def get_df(roots):
     total = []
     for root in roots:
-        for root, dirs, files in os.walk(root):
+        for _root, dirs, files in os.walk(root):
             excels = []
             for file in files:
-                excels.append(file)
+                excels.append(os.path.join(_root, file))
             total.extend(excels)
     total = [x for x in total if x.endswith('.xlsx')]
     return pd.concat([df for df in [pd.read_excel(x) for x in total]])
@@ -40,7 +40,7 @@ def get_df(roots):
 data = walk_nii(DATA_ROOT)
 # ref = walk_nii(REF_EXIST_DATA_ROOT)
 ref_df = get_df(REF_DF_DIRS)
-ref_df = ref_df[ref_df['ann_flag']==1 or ref_df['ann_flag']==2]
+ref_df = ref_df[np.logical_or.reduce([ref_df['ann_flag']==1, ref_df['ann_flag']==2])]
 data_toRemove = [x for x in data if os.path.split(x)[-1].replace('.nii.gz', '') in ref_df['nii_file']]
 print(f'Deleting duplicated {len(data_toRemove)} cases from data_root {DATA_ROOT}, as there are ann files.')
 for x in tqdm(data_toRemove):
