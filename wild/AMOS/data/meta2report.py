@@ -7,20 +7,28 @@ import pandas as pd
 
 
 
-def mergeReportAndSeries(data_root, pre_series_report_dirs, series_meta_df):
+def mergeReportAndSeries(data_root, pre_series_report_files, series_meta_df):
     """
     Args:
-    - pre_series_report_dirs: previous full report dir list
+    - pre_series_report_dirs: previous full report file list
     - data_root: new DICOM dir to find report csv
     - series_meta_df: new data series meta df 
     """
-    csvs = glob.glob(data_root+'/*.csv', recursive=True)
-    report_df = pd.concat([pd.read_csv(f) for f in csvs ])
+    total_report = []
+    # clean
+    for root, dirs, files in os.walk(data_root):
+        file_list = []
+        for file in files:
+            file_list.append(os.path.join(root, file))
+        total_report.extend(file_list)
+    total_report = [x for x in total_report if x.endswith('.csv')]
+    report_df = pd.concat([pd.read_csv(f) for f in total_report ])
     pre_df = None
+    
     # 提取之前已标注的病人病历号
-    if pre_series_report_dirs is not None:
-        pre_df = pd.concat([pd.concat(pd.read_excel(dr, usecols=['病历号', 'complete_ab_flag'], sheet_name=None), ignore_index=True) for dr in pre_series_report_dirs])
-        pre_df = pre_df[pre_df['complete_ab_flag'] == 1]
+    if pre_series_report_files is not None:
+        pre_df = pd.concat([pd.concat(pd.read_excel(dr, usecols=['病历号', 'complete_ab_flag'], sheet_name=None), ignore_index=True) for dr in pre_series_report_files])
+        # pre_df = pre_df[pre_df['complete_ab_flag'] == 1]
 
     report_df['检查时间'] = pd.to_datetime(report_df['检查时间'], format='%Y-%m-%d %H:%M:%S')
     report_df['检查时间'] = report_df['检查时间'].dt.strftime('%Y%m%d')

@@ -25,13 +25,13 @@ TYPE: Modality type (MR, CT)
 SELECT: whether to select by interest
 """
 
-# PRE_FULL_REPORT_ROOT = r'F:\MIA\AMOS-CT-MR\raw\meta'
-PRE_FULL_REPORT_ROOT = None
-DATA_ROOT = r'F:\MIA\AMOS-CT-MR\raw\first_round\mr\2017'
+PRE_FULL_REPORT_ROOT = r'F:\MIA\AMOS-CT-MR\raw\meta\mr'
+# PRE_FULL_REPORT_ROOT = None
+DATA_ROOT = r'F:\MIA\AMOS-CT-MR\raw\second_round\mr\2017'
 # DATA_ROOT = None
-OUT_DIR_NII_interest = r'F:\MIA\AMOS-CT-MR\processed\first_round\mr_nii\cancer\interest_2017'
-OUT_DIR_NII_tmp = r'F:\MIA\AMOS-CT-MR\processed\first_round\mr_nii\tmp_mr_nii_2017'
-DF_PATH = r'F:\MIA\AMOS-CT-MR\raw\meta\mr\first_round\firstround_mr_data_meta_2017.xlsx'
+OUT_DIR_NII_interest = r'F:\MIA\AMOS-CT-MR\processed\second_round\mr_nii\cancer\interest_2017'
+OUT_DIR_NII_tmp = r'F:\MIA\AMOS-CT-MR\processed\second_round\mr_nii\tmp_mr_nii_2017'
+DF_PATH = r'F:\MIA\AMOS-CT-MR\raw\meta\mr\second_round\secondround_mr_data_meta_2017.xlsx'
 PRE_NII_ROOT = None
 TYPE = 'MR'
 
@@ -93,6 +93,7 @@ def generate_dcm_dirs(df_interest, total_dcm_dirs=None):
     total_paths = set()
     check_ids = df_interest['nii_file'].str.split(
         '_', expand=True).loc[:, 0].values
+    
     for _dir in total_dcm_dirs:
         if os.path.split(_dir)[-1] in check_ids:
             total_paths.add(_dir)
@@ -125,7 +126,6 @@ def move(total_nii_paths):
 
 
 def getDf(df=None):
-    
     
     df_pre = None
 
@@ -178,28 +178,38 @@ def getDf(df=None):
 
 
 def dicom2FullReport(num_pool=8, save=True):
-    total = []
+    pre_series_report_dirs = []
     print('Start fetching all dicom files paths.')
     for root, dirs, files in os.walk(DATA_ROOT):
         dir_list = []
         for _dir in dirs:
             dir_list.append(os.path.join(root, _dir))
-        total.extend(dir_list)
+        pre_series_report_dirs.extend(dir_list)
 
     print('Checking all dicom files paths.')
-    total = [x for x in tqdm(total) if not hasSubdir(x)]
-    print(f'Found cases {len(total)} after checking.')
+    pre_series_report_dirs = [x for x in tqdm(pre_series_report_dirs) if not hasSubdir(x)]
+    print(f'Found cases {len(pre_series_report_dirs)} after checking.')
 
     print(f'Start collecting dicom info to the file {DF_PATH}.')
     with Pool(num_pool) as p:
-        r = itertools.chain(*tqdm(p.map(meta2csv, total), total=len(total)))
+        r = itertools.chain(*tqdm(p.map(meta2csv, pre_series_report_dirs), total=len(pre_series_report_dirs)))
 
-    pre_series_report_dirs = glob(PRE_FULL_REPORT_ROOT+'/*/*.xlsx') if PRE_FULL_REPORT_ROOT is not None else None
+    if PRE_FULL_REPORT_ROOT is not None:
+        pre_series_report_files = []
+        # clean
+        for root, dirs, files in os.walk(PRE_FULL_REPORT_ROOT):
+            file_list = []
+            for file in files:
+                file_list.append(os.path.join(root, file))
+            pre_series_report_files.extend(file_list)
+        pre_series_report_files = [x for x in pre_series_report_files if x.endswith('.xlsx')]
+    else:
+        pre_series_report_files = None
     series_meta_df = pd.DataFrame(r)
     # series_meta_df = pd.read_excel('series_tmp.xlsx')
     print('Merge reports and series\'s meta...')
     full_df = mergeReportAndSeries(
-        DATA_ROOT, pre_series_report_dirs, series_meta_df)
+        DATA_ROOT, pre_series_report_files, series_meta_df)
 
     out_dir = os.path.split(DF_PATH)[0]
     os.makedirs(out_dir, exist_ok=True)
@@ -207,7 +217,7 @@ def dicom2FullReport(num_pool=8, save=True):
     if save:
         print(f'Output the full report to the dir {DF_PATH}.')
         full_df.to_excel(os.path.join(DF_PATH), encoding='utf-8', index=False)
-    return full_df, total
+    return full_df, pre_series_report_dirs
 
 
 def dcm2niiFiles(total_dir, num_pool=8):
