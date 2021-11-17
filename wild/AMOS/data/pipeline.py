@@ -25,15 +25,15 @@ TYPE: Modality type (MR, CT)
 SELECT: whether to select by interest
 """
 
-# PRE_FULL_REPORT_ROOT = r'D:\Development\OneDrive - i.shu.edu.cn\AMOS\People_hospital'
-PRE_FULL_REPORT_ROOT = None
-DATA_ROOT = r'E:\done\MR\2020'
+PRE_FULL_REPORT_ROOT = r'D:\Development\OneDrive - i.shu.edu.cn\AMOS\People_hospital\meta'
+# PRE_FULL_REPORT_ROOT = None
+DATA_ROOT = r'E:\done\CT'
 # DATA_ROOT = None
-OUT_DIR_NII_interest = r'D:\Development\OneDrive - i.shu.edu.cn\AMOS\People_hospital\round_4\MR\2020\data'
-OUT_DIR_NII_tmp = r'D:\Development\OneDrive - i.shu.edu.cn\AMOS\People_hospital\round_4\MR\2020\tmp_mr'
-DF_PATH = r'D:\Development\OneDrive - i.shu.edu.cn\AMOS\People_hospital\round_4\MR\2020\mr_data_meta_round_4.xlsx'
+OUT_DIR_NII_interest = r'D:\Development\OneDrive - i.shu.edu.cn\AMOS\People_hospital\round_4\CT\data'
+OUT_DIR_NII_tmp = r'D:\Development\OneDrive - i.shu.edu.cn\AMOS\People_hospital\round_4\CT\tmp_mr'
+DF_PATH = r'D:\Development\OneDrive - i.shu.edu.cn\AMOS\People_hospital\round_4\CT\ct_data_meta_round_4.xlsx'
 # PRE_NII_ROOT = r'D:\Development\OneDrive - i.shu.edu.cn\AMOS\People_hospital\round_4\MR\data'
-TYPE = 'MR'
+TYPE = 'CT'
 PRE_NII_ROOT=None
 
 SELECT = True
@@ -168,7 +168,7 @@ def getDf(df=None):
     distance_z = spacing_z.multiply(shape_z, fill_value=0)*0.1
     df.insert(0, 'd_z', distance_z)
 
-    df = df[df['d_z'] >= 35] if TYPE=='CT' else df[df['d_z'] >= 10]
+    df = df[df['d_z'] >= 40] if TYPE=='CT' else df[df['d_z'] >= 70]
     print(f'Patients in interest from df: {df.shape[0]}')
     # annotate complete_ab_flag, but need check again
     df_pre.loc[df.index, 'complete_ab_flag'] = 1
@@ -210,7 +210,7 @@ def dicom2FullReport(num_pool=8, save=True):
     # series_meta_df = pd.read_excel('series_tmp.xlsx')
     print('Merge reports and series\'s meta...')
     full_df = mergeReportAndSeries(
-        DATA_ROOT, pre_series_report_files, series_meta_df)
+        DATA_ROOT, pre_series_report_files, series_meta_df, DF_PATH)
 
     out_dir = os.path.split(DF_PATH)[0]
     os.makedirs(out_dir, exist_ok=True)

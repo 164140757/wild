@@ -7,13 +7,20 @@ import pandas as pd
 
 
 
-def mergeReportAndSeries(data_root, pre_series_report_files, series_meta_df):
+def mergeReportAndSeries(data_root, pre_series_report_files, series_meta_df, DF_PATH=''):
     """
     Args:
     - pre_series_report_dirs: previous full report file list
     - data_root: new DICOM dir to find report csv
     - series_meta_df: new data series meta df 
+    - DF_PATH: Default: ''
     """
+    # save series_meta_df in case of lossing all info
+    if  os.path.exists(DF_PATH):
+        series_meta_df = pd.read_excel(DF_PATH)
+    elif series_meta_df is not None:
+        series_meta_df.to_excel(DF_PATH)
+        
     total_report = []
     # clean
     for root, dirs, files in os.walk(data_root):
