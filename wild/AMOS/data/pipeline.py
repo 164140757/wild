@@ -9,9 +9,9 @@ from tqdm import tqdm
 from functools import partial
 import numpy as np
 
-from .dcm2nii import hasSubdir, dcm2niix
-from .meta2csv import meta2csv
-from .meta2report import mergeReportAndSeries
+from dcm2nii import hasSubdir, dcm2niix
+from meta2csv import meta2csv
+from meta2report import mergeReportAndSeries
 
 
 """
@@ -25,17 +25,17 @@ TYPE: Modality type (MR, CT)
 SELECT: whether to select by interest
 """
 
-PRE_FULL_REPORT_ROOT = r'F:\MIA\AMOS-CT-MR\raw\meta\mr'
-# PRE_FULL_REPORT_ROOT = None
-DATA_ROOT = r'F:\MIA\AMOS-CT-MR\raw\second_round\mr\2017'
+# PRE_FULL_REPORT_ROOT = r'D:\Development\OneDrive - i.shu.edu.cn\AMOS\People_hospital'
+PRE_FULL_REPORT_ROOT = None
+DATA_ROOT = r'E:\done\MR\2020'
 # DATA_ROOT = None
-OUT_DIR_NII_interest = r'F:\MIA\AMOS-CT-MR\processed\second_round\mr_nii\cancer\interest_2017'
-OUT_DIR_NII_tmp = r'F:\MIA\AMOS-CT-MR\processed\second_round\mr_nii\tmp_mr_nii_2017'
-DF_PATH = r'F:\MIA\AMOS-CT-MR\raw\meta\mr\second_round\secondround_mr_data_meta_2017.xlsx'
+OUT_DIR_NII_interest = r'D:\Development\OneDrive - i.shu.edu.cn\AMOS\People_hospital\round_4\MR\data'
+OUT_DIR_NII_tmp = r'D:\Development\OneDrive - i.shu.edu.cn\AMOS\People_hospital\round_4\MR\tmp_mr'
+DF_PATH = r'D:\Development\OneDrive - i.shu.edu.cn\AMOS\People_hospital\round_4\MR\mr_data_meta_round_4.xlsx'
 PRE_NII_ROOT = None
 TYPE = 'MR'
 
-SELECT = False
+SELECT = True
 # PRE_NII_ROOT = r'F:\MIA\AMOS-CT-MR\processed\second_round\ct_nii\ct_nii_raw_20210101_20210117'
 
 # KEYWORDS = ['结石', '胆囊炎', '车祸伤', '胰腺炎', '切除', '骨折', '溃疡', '肾脏病', '腹水', '糜烂']
@@ -135,23 +135,23 @@ def getDf(df=None):
             print(f'Patients in interest from df: {df.shape[0]}')
             return df
         df_pre = df.copy(deep=True)
-        df = df[['complete_ab_flag', 'nii_file', '临床诊断',
+        df = df[['complete_ab_flag', 'nii_file', '结果描述',
                  'shape', 'Protocol Name', 'spacing', '检查时间']]
     else:
         if not SELECT:
             print(f'Patients in interest from df: {df.shape[0]}')
             return df
         df_pre = df.copy(deep=True)
-        df = df[['complete_ab_flag', 'nii_file', '临床诊断',
+        df = df[['complete_ab_flag', 'nii_file', '结果描述',
                  'shape', 'Protocol Name', 'spacing', '检查时间']]
         
         
     print('Start selecting patients of interst')
-    df = df.loc[df['Protocol Name'].str.contains('Abdomen')] if TYPE == 'CT' else df
+    df = df.loc[df['Protocol Name'].str.contains('Abdomen', case=False, na=False)] if TYPE == 'CT' else df
     df['检查时间'] = pd.to_datetime(df['检查时间'], format='%Y%m%d')
     # df = df.loc[(df['检查时间'] >= '2021-01-18') & (df['检查时间'] <= '2021-01-31')]
     conditions = []
-    conditions = [df['临床诊断'].str.contains(
+    conditions = [df['结果描述'].str.contains(
         key, na=False) for key in KEYWORDS] if KEYWORDS is not None else conditions
     conditions.append(df['complete_ab_flag']!=1)  
     df = df.loc[np.logical_or.reduce(conditions)]
@@ -167,7 +167,7 @@ def getDf(df=None):
     distance_z = spacing_z.multiply(shape_z, fill_value=0)*0.1
     df.insert(0, 'd_z', distance_z)
 
-    df = df[df['d_z'] >= 10]
+    df = df[df['d_z'] >= 35]
     print(f'Patients in interest from df: {df.shape[0]}')
     # annotate complete_ab_flag, but need check again
     df_pre.loc[df.index, 'complete_ab_flag'] = 1

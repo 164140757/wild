@@ -2,10 +2,8 @@ import os, pandas as pd
 
 # Use it after deleting files and update complete-auto-flag
 
-DF_PATH = r'F:\MIA\AMOS-CT-MR\raw\meta\second_round\secondround_ct_data_meta_202105.xlsx'
-NII_ROOTS = [r'F:\MIA\AMOS-CT-MR\processed\second_round\ct_nii\interest\interest_202105', 
-             r'F:\MIA\AMOS-CT-MR\processed\second_round\ct_nii\interest_new_diseases\interest_202105',
-             r'F:\MIA\AMOS-CT-MR\processed\second_round\ct_nii\normal\interest_202105']
+DF_PATH = r'D:\Development\OneDrive - i.shu.edu.cn\AMOS\People_hospital\round_3\ct_data_meta_round_3.xlsx'
+NII_ROOTS = [r'D:\Development\OneDrive - i.shu.edu.cn\AMOS\People_hospital\round_3\data', ]
 
 df = pd.read_excel(DF_PATH)
 df['complete_ab_flag'] = ''
