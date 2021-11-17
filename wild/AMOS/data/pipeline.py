@@ -29,11 +29,12 @@ SELECT: whether to select by interest
 PRE_FULL_REPORT_ROOT = None
 DATA_ROOT = r'E:\done\MR\2020'
 # DATA_ROOT = None
-OUT_DIR_NII_interest = r'D:\Development\OneDrive - i.shu.edu.cn\AMOS\People_hospital\round_4\MR\data'
-OUT_DIR_NII_tmp = r'D:\Development\OneDrive - i.shu.edu.cn\AMOS\People_hospital\round_4\MR\tmp_mr'
-DF_PATH = r'D:\Development\OneDrive - i.shu.edu.cn\AMOS\People_hospital\round_4\MR\mr_data_meta_round_4.xlsx'
-PRE_NII_ROOT = None
+OUT_DIR_NII_interest = r'D:\Development\OneDrive - i.shu.edu.cn\AMOS\People_hospital\round_4\MR\2020\data'
+OUT_DIR_NII_tmp = r'D:\Development\OneDrive - i.shu.edu.cn\AMOS\People_hospital\round_4\MR\2020\tmp_mr'
+DF_PATH = r'D:\Development\OneDrive - i.shu.edu.cn\AMOS\People_hospital\round_4\MR\2020\mr_data_meta_round_4.xlsx'
+# PRE_NII_ROOT = r'D:\Development\OneDrive - i.shu.edu.cn\AMOS\People_hospital\round_4\MR\data'
 TYPE = 'MR'
+PRE_NII_ROOT=None
 
 SELECT = True
 # PRE_NII_ROOT = r'F:\MIA\AMOS-CT-MR\processed\second_round\ct_nii\ct_nii_raw_20210101_20210117'
@@ -147,7 +148,7 @@ def getDf(df=None):
         
         
     print('Start selecting patients of interst')
-    df = df.loc[df['Protocol Name'].str.contains('Abdomen', case=False, na=False)] if TYPE == 'CT' else df
+    # df = df.loc[df['Protocol Name'].str.contains('Abdomen', case=False, na=False)] if TYPE == 'CT' else df
     df['检查时间'] = pd.to_datetime(df['检查时间'], format='%Y%m%d')
     # df = df.loc[(df['检查时间'] >= '2021-01-18') & (df['检查时间'] <= '2021-01-31')]
     conditions = []
@@ -167,7 +168,7 @@ def getDf(df=None):
     distance_z = spacing_z.multiply(shape_z, fill_value=0)*0.1
     df.insert(0, 'd_z', distance_z)
 
-    df = df[df['d_z'] >= 35]
+    df = df[df['d_z'] >= 35] if TYPE=='CT' else df[df['d_z'] >= 10]
     print(f'Patients in interest from df: {df.shape[0]}')
     # annotate complete_ab_flag, but need check again
     df_pre.loc[df.index, 'complete_ab_flag'] = 1
