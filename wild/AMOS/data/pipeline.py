@@ -154,8 +154,9 @@ def getDf(df=None):
     conditions = []
     conditions = [df['结果描述'].str.contains(
         key, na=False) for key in KEYWORDS] if KEYWORDS is not None else conditions
-    conditions.append(df['complete_ab_flag']!=1)  
-    df = df.loc[np.logical_or.reduce(conditions)]
+    # conditions.append(df['complete_ab_flag']!=1) 
+    if len(conditions)!=0:
+        df = df.loc[np.logical_or.reduce(conditions)]
     
     if df.shape[0] == 0:
         raise ValueError('The full report has no patients of interest.')
@@ -171,10 +172,12 @@ def getDf(df=None):
     df = df[df['d_z'] >= 40] if TYPE=='CT' else df[df['d_z'] >= 70]
     print(f'Patients in interest from df: {df.shape[0]}')
     # annotate complete_ab_flag, but need check again
-    df_pre.loc[df.index, 'complete_ab_flag'] = 1
-    print(
-        f'Add excel {DF_PATH} with complete_ab_flag that denotes targets of interest.')
-    df_pre.to_excel(os.path.join(DF_PATH), encoding='utf-8', index=False)
+    if df.shape[0]!=df_pre[df_pre['complete_ab_flag']==1].shape[0]:
+        df_pre['complete_ab_flag'] = ''
+        df_pre.loc[df.index, 'complete_ab_flag'] = 1
+        print(
+            f'Add excel {DF_PATH} with complete_ab_flag that denotes targets of interest.')
+        df_pre.to_excel(os.path.join(DF_PATH), encoding='utf-8', index=False)
     return df
 
 
