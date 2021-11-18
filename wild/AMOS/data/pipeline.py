@@ -232,7 +232,7 @@ def dcm2niiFiles(total_dir, num_pool=8):
     total = len(total_dir)
     # spare resources for outcomes that exist
     total_dir = [x for x in total_dir if not os.path.exists(
-        os.path.join(OUT_DIR_NII_interest, os.path.split(x)[-1]))]
+        os.path.join(OUT_DIR_NII_tmp, os.path.split(x)[-1]))]
     _total = len(total_dir)
     print(f'Skip {total - _total} cases that already exist.')
 
